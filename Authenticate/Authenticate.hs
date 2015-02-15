@@ -52,6 +52,11 @@ instance PartialIf (AuthenticateDecision authenticator a) (Authenticated a) wher
     OK x -> Just x
     _ -> Nothing
 
+instance f ~ Failure authenticator => TotalIf (AuthenticateDecision authenticator a) (Authenticated a) f where
+  decide auth = case auth of
+    OK x -> Left x
+    Bad x -> Right x
+
 class Authenticator a where
   type Failure a :: *
   -- ^ Type to describe every possible reason for authentication failure.
