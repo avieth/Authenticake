@@ -5,7 +5,7 @@ module Authenticate.Pure (
 
     Pure
   , emptyPure
-  , populatePure
+  , fromMap
 
   , PureFailure
   , PureUpdateFailure
@@ -51,15 +51,5 @@ instance AuthenticationContext Pure where
 emptyPure :: Pure
 emptyPure = Pure M.empty
 
-populatePure
-  :: Authenticatable Pure t
-  => [(t, Challenge Pure t)]
-  -> Pure
-  -> IO Pure
-populatePure [] inmem = return inmem
-populatePure (x : xs) inmem = do
-  result <- setAuthentication inmem (fst x) (snd x)
-  ifElse
-    result
-    (\inmem' -> populatePure xs inmem')
-    (\failure -> populatePure xs inmem)
+fromMap :: M.Map T.Text T.Text -> Pure
+fromMap = Pure

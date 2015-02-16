@@ -2,7 +2,7 @@
 
 module Authenticate.Nice (
 
-    Nice
+    Nice(..)
 
   ) where
 

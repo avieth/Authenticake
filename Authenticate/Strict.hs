@@ -2,7 +2,8 @@
 
 module Authenticate.Strict (
 
-    Strict
+    Strict(..)
+  , StrictFailure
 
   ) where
 
