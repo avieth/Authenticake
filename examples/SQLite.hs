@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 import qualified Data.Text as T
@@ -8,15 +9,21 @@ import Authenticate.SQLite
 import Control.RichConditional
 import System.Environment (getArgs)
 
+data ExampleDomain = ExampleDomain SQLite
+
+instance AuthenticationContext ExampleDomain where
+  type AuthenticatingAgent ExampleDomain = SQLite
+  authenticatingAgent (ExampleDomain sqlite) = sqlite
+
 data User = User BS.ByteString
 
-instance Authenticatable SQLite User where
+instance Authenticatable ExampleDomain User where
   authenticationSubject _ (User b) = b
 
 main = do
     [filepath, action, username, password] <- getArgs
     let user = User (B8.pack username)
-    let auther = sqlite filepath
+    let auther = ExampleDomain (sqlite filepath)
     if action == "set"
     then do result <- setAuthentication auther user (B8.pack password)
             ifElse result ifUpdated ifNotUpdated
@@ -27,7 +34,7 @@ main = do
 
   where
 
-    ifAuthenticated :: Authenticated User -> IO ()
+    ifAuthenticated :: Authenticated ExampleDomain User -> IO ()
     ifAuthenticated _ = putStrLn "Authenticated!"
 
     ifNotAuthenticated :: SQLiteFailure -> IO ()

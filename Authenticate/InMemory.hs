@@ -44,6 +44,10 @@ instance MutableAuthenticator InMemory where
   authenticatorUpdate (InMemory map) _ key value =
     Right . InMemory <$> pure (M.insert key value map)
 
+instance AuthenticationContext InMemory where
+  type AuthenticatingAgent InMemory = InMemory
+  authenticatingAgent = id
+
 emptyInMemory :: InMemory
 emptyInMemory = InMemory M.empty
 
