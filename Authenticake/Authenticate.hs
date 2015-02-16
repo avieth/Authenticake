@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Authenticate.Authenticate (
+module Authenticake.Authenticate (
 
     authenticate
   , Authenticated

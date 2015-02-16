@@ -1,12 +1,12 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Authenticate.Nice (
+module Authenticake.Nice (
 
     Nice(..)
 
   ) where
 
-import Authenticate.Authenticate
+import Authenticake.Authenticate
 
 -- | The NiceAuthenticator authenticates everybody.
 data Nice = Nice

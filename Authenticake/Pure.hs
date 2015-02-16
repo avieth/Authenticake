@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Authenticate.Pure (
+module Authenticake.Pure (
 
     Pure
   , emptyPure
@@ -16,7 +16,7 @@ import qualified Data.Text as T
 import qualified Data.Map as M
 import Control.Applicative
 import Control.RichConditional
-import Authenticate.Authenticate
+import Authenticake.Authenticate
 
 -- | In-memory authenticator.
 --   Demands reads and writes in a safe, controlled way.

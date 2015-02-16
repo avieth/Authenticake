@@ -1,13 +1,13 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Authenticate.Strict (
+module Authenticake.Strict (
 
     Strict(..)
   , StrictFailure
 
   ) where
 
-import Authenticate.Authenticate
+import Authenticake.Authenticate
 
 -- | The StrictAuthenticator never authenticates anybody.
 data Strict = Strict

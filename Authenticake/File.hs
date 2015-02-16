@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Authenticate.File (
+module Authenticake.File (
 
     File
   , file
@@ -13,7 +13,7 @@ import Control.Exception
 import Control.Applicative
 import System.IO
 import Data.Attoparsec.Text
-import Authenticate.Authenticate
+import Authenticake.Authenticate
 
 -- | A rather silly example, in which usernames and passwords are stored in
 --   a text file, with no obfuscation.
