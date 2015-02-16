@@ -16,6 +16,8 @@ module Authenticate.Authenticate (
   , MutableAuthenticator(..)
   , Authenticatable(..)
 
+  , authenticatedValue
+
   ) where
 
 import Control.RichConditional
@@ -60,6 +62,9 @@ setAuthentication a x c = do
 --   'authenticate' is the only function which will create Authenticated
 --   values.
 data Authenticated a = Authenticated a
+
+authenticatedValue :: Authenticated a -> a
+authenticatedValue (Authenticated x) = x
 
 -- | A decision about authentication for a value of some type a.
 data AuthenticateDecision authenticator a
