@@ -20,7 +20,7 @@ description:         Provides a single interface for indicating that a value has
                      been authenticated in a given context.
 
 -- URL for the project homepage or repository.
-homepage:            https://github.com/avieth/Authenticator
+homepage:            https://github.com/avieth/Authenticate
 
 -- The license under which the package is released.
 license:             MIT
