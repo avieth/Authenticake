@@ -1,10 +1,10 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Authenticate.FlatFile (
+module Authenticate.File (
 
-    FlatFile
-  , flatFile
-  , FlatFileFailure
+    File
+  , file
+  , FileFailure
 
   ) where
 
@@ -17,14 +17,16 @@ import Authenticate.Authenticate
 
 -- | A rather silly example, in which usernames and passwords are stored in
 --   a text file, with no obfuscation.
-data FlatFile = FlatFile {
+--   Clearly this is not intended for use; it's just here as a first example
+--   of an Authenticator instance.
+data File = File {
     _filepath :: FilePath
   }
 
-flatFile :: FilePath -> FlatFile
-flatFile = FlatFile
+file :: FilePath -> File
+file = File
 
-data FlatFileFailure
+data FileFailure
   = ReadError
   | UsernameNotFound
   | BadPassword
@@ -33,24 +35,24 @@ data FlatFileFailure
 lineParser :: Parser (T.Text, T.Text)
 lineParser = (,) <$> takeTill ((==) ',') <* char ',' <*> takeText
 
-instance Authenticator FlatFile where
-  type Failure FlatFile = FlatFileFailure
-  type Subject FlatFile t = T.Text
-  type Challenge FlatFile t = T.Text
+instance Authenticator File where
+  type Failure File = FileFailure
+  type Subject File t = T.Text
+  type Challenge File t = T.Text
 
   -- A rather ugly and probably unsafe definition of the flat file's
   -- decision: look for the first line in the file matching the username,
   -- and check the associated password.
-  authenticatorDecision flatFile _ subject challenge =
+  authenticatorDecision f _ subject challenge =
       catch checkFile catcher
 
     where
 
-      catcher :: SomeException -> IO (Maybe FlatFileFailure)
+      catcher :: SomeException -> IO (Maybe FileFailure)
       catcher _ = return $ Just ReadError
 
       checkFile = bracket
-        (openFile (_filepath flatFile) ReadMode)
+        (openFile (_filepath f) ReadMode)
         (hClose)
         (\handle -> findMatch handle subject challenge)
 
@@ -69,4 +71,3 @@ instance Authenticator FlatFile where
               else findMatch h subject challenge
             Left _ -> findMatch h subject challenge
         else return $ Just UsernameNotFound
-    
