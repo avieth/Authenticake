@@ -1,9 +1,13 @@
-Authenticator
-=============
+Authenticake
+============
 
 Aims to be a highly versatile and easy-to-use authentication black-box.
 
 #Examples
+
+## PostgreSQL
+
+See [Authenticake-PostgreSQL](https://github.com/avieth/Authenticake-PostgreSQL).
 
 ## SQLite
 
