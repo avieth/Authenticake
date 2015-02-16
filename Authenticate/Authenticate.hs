@@ -9,7 +9,11 @@ module Authenticate.Authenticate (
   , Authenticated
   , AuthenticateDecision
 
+  , AuthenticatorMutateDecision
+  , setAuthentication
+
   , Authenticator(..)
+  , MutableAuthenticator(..)
   , Authenticatable(..)
 
   ) where
@@ -34,6 +38,23 @@ authenticate a x c = do
   -- positive case and give Authenticated otherwise.
   return $ inCase decision Bad (OK (Authenticated x))
 
+setAuthentication
+  :: forall authenticator t .
+     ( MutableAuthenticator authenticator
+     , Authenticatable authenticator t
+     )
+  => authenticator
+  -> t
+  -> Challenge authenticator t
+  -> IO (AuthenticatorMutateDecision authenticator t)
+setAuthentication a x c = do
+  let subject = authenticationSubject (Proxy :: Proxy authenticator) x
+  result <- authenticatorUpdate a (Proxy :: Proxy t) subject c
+  return $ ifElse 
+    result
+    (UpdateFailed)
+    (UpdateOK)
+
 -- | Indicates that some value of type a is authenticated
 --   It's important that we do not export Authenticated.
 --   'authenticate' is the only function which will create Authenticated
@@ -57,6 +78,20 @@ instance f ~ Failure authenticator => TotalIf (AuthenticateDecision authenticato
     OK x -> Left x
     Bad x -> Right x
 
+data AuthenticatorMutateDecision authenticator t
+  = UpdateOK authenticator
+  | UpdateFailed (UpdateFailure authenticator)
+
+instance f ~ UpdateFailure authenticator => PartialIf (AuthenticatorMutateDecision authenticator t) f where
+  indicate authMutate = case authMutate of
+    UpdateOK _ -> Nothing
+    UpdateFailed y -> Just y
+
+instance f ~ UpdateFailure authenticator => TotalIf (AuthenticatorMutateDecision authenticator t) authenticator f where
+  decide authMutate = case authMutate of
+    UpdateOK x -> Left x
+    UpdateFailed x -> Right x
+
 class Authenticator a where
   type Failure a :: *
   -- ^ Type to describe every possible reason for authentication failure.
@@ -74,6 +109,16 @@ class Authenticator a where
     -> Subject a t
     -> Challenge a t
     -> IO (Maybe (Failure a))
+
+class Authenticator a => MutableAuthenticator a where
+  type UpdateFailure a :: *
+  authenticatorUpdate
+    :: Authenticatable a t
+    => a
+    -> u t
+    -> Subject a t
+    -> Challenge a t
+    -> IO (Either (UpdateFailure a) a)
 
 class Authenticatable authenticator t where
   authenticationSubject :: u authenticator -> t -> Subject authenticator t
