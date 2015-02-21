@@ -2,15 +2,23 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 module Authenticake.Authenticate (
 
     authenticate
+  , setAuthentication
+
   , Authenticated
   , AuthenticateDecision
 
-  , AuthenticatorMutateDecision
-  , setAuthentication
+  , pattern AuthenticationOK
+  , pattern AuthenticationFailed
+
+  , AuthenticatorUpdateDecision
+
+  , pattern AuthenticatorUpdateOK
+  , pattern AuthenticatorUpdateFailed
 
   , Authenticator(..)
   , MutableAuthenticator(..)
@@ -54,7 +62,7 @@ setAuthentication
   => ctx 
   -> t
   -> Challenge authenticator t
-  -> IO (AuthenticatorMutateDecision ctx t)
+  -> IO (AuthenticatorUpdateDecision ctx t)
 setAuthentication ctx x c = do
   let agent = authenticatingAgent ctx
   let subject = authenticationSubject (Proxy :: Proxy ctx) x
@@ -82,6 +90,13 @@ data AuthenticateDecision ctx a
   | Bad (Failure (AuthenticatingAgent ctx))
   -- ^ Not authenticated.
 
+-- We don't export the AuthenticateDecision constructors, but we do export
+-- pattern synonyms, to facilitate the use of this datatype.
+-- They can also be consumed through their PartialIf and TotalIf instances
+-- (inCase and ifElse).
+pattern AuthenticationOK x <- OK x
+pattern AuthenticationFailed x <- Bad x
+
 instance PartialIf (AuthenticateDecision ctx a) (Authenticated ctx a) where
   indicate auth = case auth of
     OK x -> Just x
@@ -92,16 +107,19 @@ instance f ~ Failure (AuthenticatingAgent ctx) => TotalIf (AuthenticateDecision 
     OK x -> Left x
     Bad x -> Right x
 
-data AuthenticatorMutateDecision ctx t
+data AuthenticatorUpdateDecision ctx t
   = UpdateOK (AuthenticatingAgent ctx)
   | UpdateFailed (UpdateFailure (AuthenticatingAgent ctx))
 
-instance f ~ UpdateFailure (AuthenticatingAgent ctx) => PartialIf (AuthenticatorMutateDecision ctx t) f where
+pattern AuthenticatorUpdateOK x <- UpdateOK x
+pattern AuthenticatorUpdateFailed x <- UpdateFailed x
+
+instance f ~ UpdateFailure (AuthenticatingAgent ctx) => PartialIf (AuthenticatorUpdateDecision ctx t) f where
   indicate authMutate = case authMutate of
     UpdateOK _ -> Nothing
     UpdateFailed y -> Just y
 
-instance (agent ~ AuthenticatingAgent ctx, f ~ UpdateFailure agent) => TotalIf (AuthenticatorMutateDecision ctx t) agent f where
+instance (agent ~ AuthenticatingAgent ctx, f ~ UpdateFailure agent) => TotalIf (AuthenticatorUpdateDecision ctx t) agent f where
   decide authMutate = case authMutate of
     UpdateOK x -> Left x
     UpdateFailed x -> Right x
