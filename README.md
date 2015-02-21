@@ -42,10 +42,6 @@ There are four drivers in this repository:
 
 But these are probably not very useful.
 
-## PostgreSQL
+# Authenticake-Password
 
-See [Authenticake-PostgreSQL](https://github.com/avieth/Authenticake-PostgreSQL).
-
-## SQLite
-
-See [Authenticake-SQLite](https://github.com/avieth/Authenticake-SQLite).
+[Password authentication with salted digests](https://github.com/avieth/Authenticake-Password).
