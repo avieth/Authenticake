@@ -7,8 +7,8 @@ module Authenticake.Pure (
   , emptyPure
   , fromMap
 
-  , PureFailure
-  , PureUpdateFailure
+  , PureFailure(..)
+  , PureUpdateFailure(..)
 
   ) where
 
@@ -18,14 +18,14 @@ import Control.Applicative
 import Control.RichConditional
 import Authenticake.Authenticate
 
--- | In-memory authenticator.
---   Demands reads and writes in a safe, controlled way.
+-- | In-memory authenticator based on secret keys. If you give the value of
+--   the map at the subject point, then you're authenticated.
 data Pure = Pure (M.Map T.Text T.Text)
 
 -- | Can never fail for exceptional reasons, unlike an I/O based authenticator.
 data PureFailure
   = UsernameNotFound
-  | InvalidPassword
+  | WrongSecret
   deriving (Show)
 
 -- | Can never fail!
@@ -36,7 +36,7 @@ instance Authenticator Pure where
   type Subject Pure t = T.Text
   type Challenge Pure s = T.Text
   authenticatorDecision (Pure map) _ key value = case M.lookup key map of
-    Just value' -> if value == value' then return Nothing else return $ Just InvalidPassword
+    Just value' -> if value == value' then return Nothing else return $ Just WrongSecret
     Nothing -> return $ Just UsernameNotFound
 
 instance MutableAuthenticator Pure where
