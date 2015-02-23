@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -27,8 +28,8 @@ module Authenticake.Authenticate (
 
   , authenticatedValue
 
-  , AuthenticatorOr
-  , AuthenticatorAnd
+  , AuthenticatorOr(..)
+  , AuthenticatorAnd(..)
   , Pair(..)
   , Left(..)
   , Right(..)
@@ -41,19 +42,18 @@ import Data.Proxy
 
 -- | The main user-facing function
 authenticate
-  :: forall ctx authenticator t .
+  :: forall ctx t .
      ( AuthenticationContext ctx
-     , Authenticatable ctx t
-     , authenticator ~ AuthenticatingAgent ctx
-     , Authenticator authenticator
+     , Authenticatable (AuthenticatingAgent ctx) t
+     , Authenticator (AuthenticatingAgent ctx)
      )
   => ctx
   -> t
-  -> Challenge authenticator (Subject authenticator t)
+  -> Challenge (AuthenticatingAgent ctx) (Subject (AuthenticatingAgent ctx) t)
   -> IO (AuthenticateDecision ctx t)
 authenticate ctx x c = do
   let agent = authenticatingAgent ctx
-  let subject = authenticationSubject (Proxy :: Proxy ctx) x
+  let subject = authenticationSubject (Proxy :: Proxy (AuthenticatingAgent ctx)) x
   decision <- authenticatorDecision agent (Proxy :: Proxy t) subject c
   -- The decision is positive in case of a failure, so we use Bad in the
   -- positive case and give Authenticated otherwise.
@@ -62,8 +62,8 @@ authenticate ctx x c = do
 setAuthentication
   :: forall ctx authenticator t .
      ( AuthenticationContext ctx
-     , Authenticatable ctx t
      , authenticator ~ AuthenticatingAgent ctx
+     , Authenticatable authenticator t
      , MutableAuthenticator authenticator
      )
   => ctx 
@@ -72,7 +72,7 @@ setAuthentication
   -> IO (AuthenticatorUpdateDecision ctx t)
 setAuthentication ctx x c = do
   let agent = authenticatingAgent ctx
-  let subject = authenticationSubject (Proxy :: Proxy ctx) x
+  let subject = authenticationSubject (Proxy :: Proxy (AuthenticatingAgent ctx)) x
   result <- authenticatorUpdate agent (Proxy :: Proxy t) subject c
   return $ ifElse 
     result
@@ -165,8 +165,8 @@ class Authenticator a => MutableAuthenticator a where
     -> Challenge a (Subject a t)
     -> IO (Either (UpdateFailure a (Subject a t)) a)
 
-class Authenticatable ctx t where
-  authenticationSubject :: u ctx -> t -> Subject (AuthenticatingAgent ctx) t
+class Authenticatable authenticator t where
+  authenticationSubject :: u authenticator -> t -> Subject authenticator t
 
 class AuthenticationContext ctx where
   type AuthenticatingAgent ctx :: *
@@ -188,6 +188,11 @@ data Pair a b = P a b
 instance (Authenticator a, Authenticator b) => Authenticator (AuthenticatorOr a b) where
 
   type Failure (AuthenticatorOr a b) (Pair s0 s1) = Pair (Failure a s0) (Failure b s1)
+  -- TODO problem! Subject should not be a pair, it should just be one thing...
+  -- so the subjects of both authenticators have to agree!
+  -- Ah, no, they just have to be compatible. We'll add that to the data in
+  -- AuthenticatorOr: ... hm, nonono I think we can just use Authenticatable
+  -- instance!
   type Subject (AuthenticatorOr a b) t = Pair (Subject a t) (Subject b t)
   type Challenge (AuthenticatorOr a b) (Pair s0 s1) = Pair (Challenge a s0) (Challenge b s1)
 
@@ -208,3 +213,27 @@ instance (Authenticator a, Authenticator b) => Authenticator (AuthenticatorAnd a
       decisionA <- authenticatorDecision a proxy sA cA
       decisionB <- authenticatorDecision b proxy sB cB
       return ((Left <$> decisionA) <|> (Right <$> decisionB))
+
+instance
+  ( Authenticatable authA t
+  , Authenticatable authB t
+  ) => Authenticatable (AuthenticatorOr authA authB) t where
+  authenticationSubject _ t =
+      P (authenticationSubject proxyA t) (authenticationSubject proxyB t)
+    where
+      proxyA :: Proxy authA
+      proxyA = Proxy
+      proxyB :: Proxy authB
+      proxyB = Proxy
+
+instance
+  ( Authenticatable authA t
+  , Authenticatable authB t
+  ) => Authenticatable (AuthenticatorAnd authA authB) t where
+  authenticationSubject _ t =
+      P (authenticationSubject proxyA t) (authenticationSubject proxyB t)
+    where
+      proxyA :: Proxy authA
+      proxyA = Proxy
+      proxyB :: Proxy authB
+      proxyB = Proxy
