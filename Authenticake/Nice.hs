@@ -14,7 +14,7 @@ data Nice = Nice
 data NiceFailure
 
 instance Authenticator Nice where
-  type Failure Nice = Nice
+  type Failure Nice s = Nice
   type Subject Nice t = t
-  type Challenge Nice t = ()
+  type Challenge Nice s = ()
   authenticatorDecision _ _ _ _ = return Nothing

@@ -32,15 +32,15 @@ data PureFailure
 data PureUpdateFailure
 
 instance Authenticator Pure where
-  type Failure Pure = PureFailure
+  type Failure Pure s = PureFailure
   type Subject Pure t = T.Text
-  type Challenge Pure t = T.Text
+  type Challenge Pure s = T.Text
   authenticatorDecision (Pure map) _ key value = case M.lookup key map of
     Just value' -> if value == value' then return Nothing else return $ Just InvalidPassword
     Nothing -> return $ Just UsernameNotFound
 
 instance MutableAuthenticator Pure where
-  type UpdateFailure Pure = PureUpdateFailure
+  type UpdateFailure Pure s = PureUpdateFailure
   authenticatorUpdate (Pure map) _ key value =
     Right . Pure <$> pure (M.insert key value map)
 

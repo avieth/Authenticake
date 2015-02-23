@@ -16,7 +16,7 @@ data StrictFailure = StrictDenied
   deriving (Show)
 
 instance Authenticator Strict where
-  type Failure Strict = StrictFailure
+  type Failure Strict s = StrictFailure
   type Subject Strict t = t
-  type Challenge Strict t = ()
+  type Challenge Strict s = ()
   authenticatorDecision _ _ _ _ = return $ Just StrictDenied
