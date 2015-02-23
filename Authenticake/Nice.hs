@@ -9,6 +9,8 @@ module Authenticake.Nice (
 import Authenticake.Authenticate
 
 -- | The NiceAuthenticator authenticates everybody.
+--   If Authenticator instances form a monoid under AuthenticatorAnd, then this
+--   is the identity.
 data Nice = Nice
 
 data NiceFailure

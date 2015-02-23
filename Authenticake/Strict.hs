@@ -10,6 +10,8 @@ module Authenticake.Strict (
 import Authenticake.Authenticate
 
 -- | The StrictAuthenticator never authenticates anybody.
+--   If Authenticator instances form a monoid under AuthenticatorOr, then this
+--   is the identity.
 data Strict = Strict
 
 data StrictFailure = StrictDenied
