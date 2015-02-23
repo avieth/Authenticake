@@ -188,11 +188,8 @@ data Pair a b = P a b
 instance (Authenticator a, Authenticator b) => Authenticator (AuthenticatorOr a b) where
 
   type Failure (AuthenticatorOr a b) (Pair s0 s1) = Pair (Failure a s0) (Failure b s1)
-  -- TODO problem! Subject should not be a pair, it should just be one thing...
-  -- so the subjects of both authenticators have to agree!
-  -- Ah, no, they just have to be compatible. We'll add that to the data in
-  -- AuthenticatorOr: ... hm, nonono I think we can just use Authenticatable
-  -- instance!
+  -- Subject have to in some sense "agree". The instances of
+  -- Authenticatable for AuthenticatorOr facilitate this.
   type Subject (AuthenticatorOr a b) t = Pair (Subject a t) (Subject b t)
   type Challenge (AuthenticatorOr a b) (Pair s0 s1) = Pair (Challenge a s0) (Challenge b s1)
 
