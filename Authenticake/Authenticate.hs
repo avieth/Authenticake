@@ -27,8 +27,15 @@ module Authenticake.Authenticate (
 
   , authenticatedValue
 
+  , AuthenticatorOr
+  , AuthenticatorAnd
+  , Pair(..)
+  , Left(..)
+  , Right(..)
+
   ) where
 
+import Control.Applicative
 import Control.RichConditional
 import Data.Proxy
 
@@ -42,7 +49,7 @@ authenticate
      )
   => ctx
   -> t
-  -> Challenge authenticator t
+  -> Challenge authenticator (Subject authenticator t)
   -> IO (AuthenticateDecision ctx t)
 authenticate ctx x c = do
   let agent = authenticatingAgent ctx
@@ -61,7 +68,7 @@ setAuthentication
      )
   => ctx 
   -> t
-  -> Challenge authenticator t
+  -> Challenge authenticator (Subject authenticator t)
   -> IO (AuthenticatorUpdateDecision ctx t)
 setAuthentication ctx x c = do
   let agent = authenticatingAgent ctx
@@ -87,7 +94,7 @@ authenticatedValue (Authenticated x) = x
 data AuthenticateDecision ctx a
   = OK (Authenticated ctx a)
   -- ^ Authenticated.
-  | Bad (Failure (AuthenticatingAgent ctx))
+  | Bad (Failure (AuthenticatingAgent ctx) (Subject (AuthenticatingAgent ctx) a))
   -- ^ Not authenticated.
 
 -- We don't export the AuthenticateDecision constructors, but we do export
@@ -102,57 +109,61 @@ instance PartialIf (AuthenticateDecision ctx a) (Authenticated ctx a) where
     OK x -> Just x
     _ -> Nothing
 
-instance f ~ Failure (AuthenticatingAgent ctx) => TotalIf (AuthenticateDecision ctx a) (Authenticated ctx a) f where
+instance f ~ Failure (AuthenticatingAgent ctx) (Subject (AuthenticatingAgent ctx) a) => TotalIf (AuthenticateDecision ctx a) (Authenticated ctx a) f where
   decide auth = case auth of
     OK x -> Left x
     Bad x -> Right x
 
 data AuthenticatorUpdateDecision ctx t
   = UpdateOK (AuthenticatingAgent ctx)
-  | UpdateFailed (UpdateFailure (AuthenticatingAgent ctx))
+  | UpdateFailed (UpdateFailure (AuthenticatingAgent ctx) (Subject (AuthenticatingAgent ctx) t))
 
 pattern AuthenticatorUpdateOK x <- UpdateOK x
 pattern AuthenticatorUpdateFailed x <- UpdateFailed x
 
-instance f ~ UpdateFailure (AuthenticatingAgent ctx) => PartialIf (AuthenticatorUpdateDecision ctx t) f where
+instance f ~ UpdateFailure (AuthenticatingAgent ctx) (Subject (AuthenticatingAgent ctx) t) => PartialIf (AuthenticatorUpdateDecision ctx t) f where
   indicate authMutate = case authMutate of
     UpdateOK _ -> Nothing
     UpdateFailed y -> Just y
 
-instance (agent ~ AuthenticatingAgent ctx, f ~ UpdateFailure agent) => TotalIf (AuthenticatorUpdateDecision ctx t) agent f where
+instance (agent ~ AuthenticatingAgent ctx, f ~ UpdateFailure agent (Subject agent t)) => TotalIf (AuthenticatorUpdateDecision ctx t) agent f where
   decide authMutate = case authMutate of
     UpdateOK x -> Left x
     UpdateFailed x -> Right x
 
 class Authenticator a where
-  type Failure a :: *
+  type Subject a t :: *
+  -- ^ The subject can depend upon the thing being authenticated.
+  type Challenge a subject :: *
+  -- ^ The challenge can depend upon the subject.
+  type Failure a subject :: *
   -- ^ Type to describe every possible reason for authentication failure.
   --   This may vary between Authenticators: for instance, a username/password
   --   based Authenticator can say "wrong password", "unrecognized username",
   --   or "database I/O problem", but an OAuth based Authenticator would say
   --   "invalid key" or something.
-  type Subject a t :: *
-  type Challenge a t :: *
+  --   It depends upon the subject.
   authenticatorDecision
     :: (
        )
     => a
     -> u t
-    -- ^ A proxy; needed since Subject and Challenge are not injective.
+    -- ^ A proxy for the thing being authenticated; needed since Subject and
+    --   Challenge are not injective.
     -> Subject a t
-    -> Challenge a t
-    -> IO (Maybe (Failure a))
+    -> Challenge a (Subject a t)
+    -> IO (Maybe (Failure a (Subject a t)))
 
 class Authenticator a => MutableAuthenticator a where
-  type UpdateFailure a :: *
+  type UpdateFailure a subject :: *
   authenticatorUpdate
     :: (
        )
     => a
     -> u t
     -> Subject a t
-    -> Challenge a t
-    -> IO (Either (UpdateFailure a) a)
+    -> Challenge a (Subject a t)
+    -> IO (Either (UpdateFailure a (Subject a t)) a)
 
 class Authenticatable ctx t where
   authenticationSubject :: u ctx -> t -> Subject (AuthenticatingAgent ctx) t
@@ -160,3 +171,40 @@ class Authenticatable ctx t where
 class AuthenticationContext ctx where
   type AuthenticatingAgent ctx :: *
   authenticatingAgent :: ctx -> AuthenticatingAgent ctx
+
+-- | An Authenticator which carries two Authenticators, and passes if and only
+--   if at least one of them passes.
+data AuthenticatorOr a b = AuthenticatorOr a b
+
+data Left a = L a
+data Right a = R a
+
+-- | An Authenticator which carries two Authenticators, and passes if and only
+--   if both of them pass.
+data AuthenticatorAnd a b = AuthenticatorAnd a b
+
+data Pair a b = P a b
+
+instance (Authenticator a, Authenticator b) => Authenticator (AuthenticatorOr a b) where
+
+  type Failure (AuthenticatorOr a b) (Pair s0 s1) = Pair (Failure a s0) (Failure b s1)
+  type Subject (AuthenticatorOr a b) t = Pair (Subject a t) (Subject b t)
+  type Challenge (AuthenticatorOr a b) (Pair s0 s1) = Pair (Challenge a s0) (Challenge b s1)
+
+  authenticatorDecision (AuthenticatorOr a b) proxy (P sA sB) (P cA cB) = do
+      -- TBD do these in parallel? Probably not worth it.
+      decisionA <- authenticatorDecision a proxy sA cA
+      decisionB <- authenticatorDecision b proxy sB cB
+      return (P <$> decisionA <*> decisionB)
+   
+instance (Authenticator a, Authenticator b) => Authenticator (AuthenticatorAnd a b) where
+
+  type Failure (AuthenticatorAnd a b) (Pair s0 s1) = Either (Failure a s0) (Failure b s1)
+  type Subject (AuthenticatorAnd a b) t = Pair (Subject a t) (Subject b t)
+  type Challenge (AuthenticatorAnd a b) (Pair s0 s1) = Pair (Challenge a s0) (Challenge b s1)
+
+  authenticatorDecision (AuthenticatorAnd a b) proxy (P sA sB) (P cA cB) = do
+      -- TBD do these in parallel? Probably not worth it.
+      decisionA <- authenticatorDecision a proxy sA cA
+      decisionB <- authenticatorDecision b proxy sB cB
+      return ((Left <$> decisionA) <|> (Right <$> decisionB))
