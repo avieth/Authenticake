@@ -1,8 +1,11 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Authenticake.Nice (
 
     Nice(..)
+  , NiceDenial
 
   ) where
 
@@ -13,10 +16,13 @@ import Authenticake.Authenticate
 --   is the identity.
 data Nice = Nice
 
-data NiceFailure
+data NiceDenial
 
 instance Authenticator Nice where
-  type Failure Nice s = Nice
+  type DenialReason Nice s = NiceDenial
   type Subject Nice t = t
   type Challenge Nice s = ()
-  authenticatorDecision _ _ _ _ = return Nothing
+  authenticate Nice proxy subject challenge = return Nothing
+
+instance Authenticates Nice t where
+  toSubject Nice = id

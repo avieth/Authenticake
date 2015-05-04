@@ -1,9 +1,11 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Authenticake.Strict (
 
     Strict(..)
-  , StrictFailure
+  , StrictDenial
 
   ) where
 
@@ -14,11 +16,14 @@ import Authenticake.Authenticate
 --   is the identity.
 data Strict = Strict
 
-data StrictFailure = StrictDenied
+data StrictDenial = StrictDenial
   deriving (Show)
 
 instance Authenticator Strict where
-  type Failure Strict s = StrictFailure
+  type DenialReason Strict s = StrictDenial
   type Subject Strict t = t
   type Challenge Strict s = ()
-  authenticatorDecision _ _ _ _ = return $ Just StrictDenied
+  authenticate Strict proxy subject challenge = return $ Just StrictDenial
+
+instance Authenticates Strict t where
+  toSubject Strict = id
