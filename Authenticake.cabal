@@ -55,22 +55,22 @@ library
   exposed-modules:     Authenticake.Authenticate
                      , Authenticake.Strict
                      , Authenticake.Nice
-                     , Authenticake.File
-                     , Authenticake.Pure
   
   -- Modules included in this library but not exported.
   -- other-modules:       
   
   -- LANGUAGE extensions used by modules in this package.
-  other-extensions:    TypeFamilies, OverloadedStrings, FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables, FlexibleContexts, PatternSynonyms
+  other-extensions:      TypeFamilies
+                       , FlexibleInstances
+                       , MultiParamTypeClasses
+                       , ScopedTypeVariables
+                       , FlexibleContexts
+                       , AutoDeriveTypeable
+                       , GeneralizedNewtypeDeriving
+                       , DeriveFunctor
   
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.7 && <4.8
-                     , text >=0.11 && <0.12
-                     , bytestring >=0.10 && <0.11
-                     , RichConditional >=0.1 && <0.2
-                     , attoparsec >=0.11 && <0.12
-                     , containers >=0.5 && <0.6
+  build-depends:       base >=4.7 && <4.8, transformers >= 0.3
   
   -- Directories containing source files.
   -- hs-source-dirs:      

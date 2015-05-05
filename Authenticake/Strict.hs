@@ -20,10 +20,7 @@ data StrictDenial = StrictDenial
   deriving (Show)
 
 instance Authenticator Strict where
-  type DenialReason Strict s = StrictDenial
+  type NotAuthenticReason Strict s = StrictDenial
   type Subject Strict t = t
   type Challenge Strict s = ()
   authenticate Strict proxy subject challenge = return $ Just StrictDenial
-
-instance Authenticates Strict t where
-  toSubject Strict = id

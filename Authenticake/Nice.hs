@@ -19,10 +19,7 @@ data Nice = Nice
 data NiceDenial
 
 instance Authenticator Nice where
-  type DenialReason Nice s = NiceDenial
+  type NotAuthenticReason Nice s = NiceDenial
   type Subject Nice t = t
   type Challenge Nice s = ()
   authenticate Nice proxy subject challenge = return Nothing
-
-instance Authenticates Nice t where
-  toSubject Nice = id
