@@ -11,6 +11,7 @@ module Authenticake.Authenticate (
 
     Authenticate
   , authenticatedThing
+  , authenticatedContext
   , withAuthentication
 
   , Authenticator(..)
@@ -32,11 +33,14 @@ import Control.Monad.Trans.Class
 import Data.Proxy
 
 newtype Authenticate ctx t m a = Authenticate {
-    runAuthenticate :: ReaderT t m a
+    runAuthenticate :: ReaderT (ctx, t) m a
   } deriving (Functor, Applicative, Monad)
 
-authenticatedThing :: Monad m => Authenticate ctx t m t
-authenticatedThing = Authenticate ask
+authenticatedContext :: (Functor m, Monad m) => Authenticate ctx t m ctx
+authenticatedContext = Authenticate (fst <$> ask)
+
+authenticatedThing :: (Functor m, Monad m) => Authenticate ctx t m t
+authenticatedThing = Authenticate (snd <$> ask)
 
 instance MonadTrans (Authenticate ctx t) where
   lift = Authenticate . lift
@@ -60,48 +64,10 @@ withAuthentication ctx datum challenge ifInvalid term = do
     decision <- authenticate agent (Proxy :: Proxy t) subject challenge
     case decision of
         Just reason -> ifInvalid reason
-        Nothing -> runReaderT (runAuthenticate term) datum
+        Nothing -> runReaderT (runAuthenticate term) (ctx, datum)
         -- ^ The datum which was authenticated is always given to the reader.
         --   This is very important.
 
--- | TBD get rid of Authenticator class and instead use
---
---   class Authenticates ctx t where
---     type NotAuthenticReason ctx t
---     type Challenge ctx t
---     authenticate
---       :: (
---          )
---       => ctx
---       -> t
---       -> Challenge ctx t
---       -> m (AuthenticationDecision ctx t)
---
---   This has one advantage: fewer classes, without more instances (there would
---   have been just as many instance in the alternative, but they'd be
---   the toSubject class instances.
---
---   Any disadvantages? What if we wanted to do generic password auth.
---   Seems with this alternative we lose a way of static that some @ctx@ is
---   password auth, always, no matter the datum @t@.
---   The current style is more general. If you want the other style, just
---   use 
---     Subject ctx t = t
---     toSubject = const id
---   and you're good to go
---
---   So how do we explain the asymmetry between Authenticate and Authorize?
---   We have
---     Authenticator ctx
---     Authenticates ctx t
---     AuthenticationContext ctx
---   versus
---     Authorizer ctx t r
---     AuthorizationContext ctx
---   why not
---     Authorizer ctx
---     Authorizes ctx t r
---   ??
 class Authenticator ctx where
   type NotAuthenticReason ctx t
   -- ^ Description of why authentication was denied.
@@ -145,24 +111,6 @@ instance (Authenticator a, Authenticator b) => Authenticator (AuthenticatorOr a 
       decisionB <- authenticate b proxy sB cB
       return (P <$> decisionA <*> decisionB)
 
--- TODO
--- use case for And/Or is that your AuthenticationContext points to one as its
--- agent. But we want to automatically figure out how to produce a subject and
--- challenge for a given Authenticates... If we defined Authenticates against
--- Authenticators rather than AuthenticationContexts we'd be alright... we
--- somehow must say if we have Authenticates ctx t... 
--- Ok, we could ditch the automatic Authenticates instances, and just have the
--- programmer write them. They're easy, anyway.
-
-{-
-instance
-  ( Authenticates authA t
-  , Authenticates authB t
-  )
-  => Authenticates (AuthenticatorOr authA authB) t where
-  toSubject (AuthenticatorOr authA authB) t = P (toSubject authA t) (toSubject authB t)
--}
-
 -- | An Authenticator which carries two Authenticators, and passes if and only
 --   if both of them pass.
 data AuthenticatorAnd a b = AuthenticatorAnd a b
@@ -178,12 +126,3 @@ instance (Authenticator a, Authenticator b) => Authenticator (AuthenticatorAnd a
       decisionA <- authenticate a proxy sA cA
       decisionB <- authenticate b proxy sB cB
       return ((Left <$> decisionA) <|> (Right <$> decisionB))
-
-{-
-instance
-  ( Authenticates authA t
-  , Authenticates authB t
-  )
-  => Authenticates (AuthenticatorAnd authA authB) t where
-  toSubject (AuthenticatorAnd authA authB) t = P (toSubject authA t) (toSubject authB t)
--}
