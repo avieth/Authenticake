@@ -7,7 +7,7 @@ module Authenticake.Password (
   , emptyPassword
   , fromMap
 
-  , PasswordDenial(..)
+  , PasswordNotAuthentic(..)
   --, PasswordUpdateFailure(..)
 
   ) where
@@ -22,13 +22,13 @@ import Authenticake.Authenticate
 data Password = Password (M.Map T.Text T.Text)
 
 -- | Can never fail for exceptional reasons, unlike an I/O based authenticator.
-data PasswordDenial
+data PasswordNotAuthentic
   = SubjectNotFound
   | ChallengeMismatch
   deriving (Show)
 
 instance Authenticator Password where
-  type DenialReason Password s = PasswordDenial
+  type NotAuthenticReason Password s = PasswordNotAuthentic
   type Subject Password t = T.Text
   type Challenge Password s = T.Text
   authenticate (Password map) proxy key value = case M.lookup key map of
