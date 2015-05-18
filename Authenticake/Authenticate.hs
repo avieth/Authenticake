@@ -27,7 +27,6 @@ module Authenticake.Authenticate (
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
 import Control.Monad.Trans.Class
 import Data.Proxy
@@ -47,10 +46,10 @@ instance MonadTrans (Authenticate ctx t) where
 
 withAuthentication
   :: forall ctx t m a .
-     ( MonadIO m
-     , AuthenticationContext ctx
+     ( AuthenticationContext ctx
      , Authenticates ctx t
      , Authenticator (AuthenticationAgent ctx)
+     , Monad m
      )
   => ctx
   -> t
@@ -74,7 +73,7 @@ class Authenticator ctx where
   type Subject ctx t
   type Challenge ctx t
   authenticate
-    :: ( MonadIO m
+    :: ( Monad m
        )
     => ctx
     -> Proxy t
