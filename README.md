@@ -38,10 +38,6 @@ There are four drivers in this repository:
 - Strict : never authenticates anything
 - Nice : authenticates everything
 - File : uses a text file to store username, password pairs with no obfuscation
-- Pure : uses a Haskell Map to store username, password associations
+- Password : uses a Haskell Map to store username, password associations
 
 But these are probably not very useful.
-
-# Authenticake-Password
-
-[Password authentication with salted digests](https://github.com/avieth/Authenticake-Password).
