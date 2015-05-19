@@ -27,6 +27,7 @@ module Authenticake.Authenticate (
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.IO.Class
 import Control.Monad.Trans.Reader
 import Control.Monad.Trans.Class
 import Data.Proxy
@@ -50,6 +51,7 @@ withAuthentication
      , Authenticates ctx t
      , Authenticator (AuthenticationAgent ctx)
      , Monad m
+     , MonadIO m
      )
   => ctx
   -> t
@@ -60,7 +62,7 @@ withAuthentication
 withAuthentication ctx datum challenge ifInvalid term = do
     let subject = toSubject ctx datum
     let agent = authenticationAgent ctx
-    decision <- authenticate agent (Proxy :: Proxy t) subject challenge
+    decision <- liftIO $ authenticate agent (Proxy :: Proxy t) subject challenge
     case decision of
         Just reason -> ifInvalid reason
         Nothing -> runReaderT (runAuthenticate term) (ctx, datum)
@@ -73,13 +75,13 @@ class Authenticator ctx where
   type Subject ctx t
   type Challenge ctx t
   authenticate
-    :: ( Monad m
+    :: (
        )
     => ctx
     -> Proxy t
     -> Subject ctx t
     -> Challenge ctx t
-    -> m (AuthenticationDecision ctx t)
+    -> IO (AuthenticationDecision ctx t)
 
 class AuthenticationContext ctx => Authenticates ctx t where
   toSubject :: ctx -> t -> Subject (AuthenticationAgent ctx) t
@@ -98,30 +100,36 @@ data AuthenticatorOr a b = AuthenticatorOr a b
 
 data Pair a b = P a b
 
-instance (Authenticator a, Authenticator b) => Authenticator (AuthenticatorOr a b) where
+instance
+    ( Authenticator a
+    , Authenticator b
+    ) => Authenticator (AuthenticatorOr a b)
+  where
 
-  type NotAuthenticReason (AuthenticatorOr a b) t = Pair (NotAuthenticReason a t) (NotAuthenticReason b t)
-  type Subject (AuthenticatorOr a b) t = Pair (Subject a t) (Subject b t)
-  type Challenge (AuthenticatorOr a b) t = Pair (Challenge a t) (Challenge b t)
+    type NotAuthenticReason (AuthenticatorOr a b) t = Pair (NotAuthenticReason a t) (NotAuthenticReason b t)
+    type Subject (AuthenticatorOr a b) t = Pair (Subject a t) (Subject b t)
+    type Challenge (AuthenticatorOr a b) t = Pair (Challenge a t) (Challenge b t)
 
-  authenticate (AuthenticatorOr a b) proxy (P sA sB) (P cA cB) = do
-      -- TBD do these in parallel? Probably not worth it.
-      decisionA <- authenticate a proxy sA cA
-      decisionB <- authenticate b proxy sB cB
-      return (P <$> decisionA <*> decisionB)
+    authenticate (AuthenticatorOr a b) proxy (P sA sB) (P cA cB) =
+        mkPair <$> authenticate a proxy sA cA <*> authenticate b proxy sB cB
+      where
+        mkPair maybe1 maybe2 = P <$> maybe1 <*> maybe2
 
 -- | An Authenticator which carries two Authenticators, and passes if and only
 --   if both of them pass.
 data AuthenticatorAnd a b = AuthenticatorAnd a b
 
-instance (Authenticator a, Authenticator b) => Authenticator (AuthenticatorAnd a b) where
+instance
+    ( Authenticator a
+    , Authenticator b
+    ) => Authenticator (AuthenticatorAnd a b)
+  where
 
-  type NotAuthenticReason (AuthenticatorAnd a b) t = Either (NotAuthenticReason a t) (NotAuthenticReason b t)
-  type Subject (AuthenticatorAnd a b) t = Pair (Subject a t) (Subject b t)
-  type Challenge (AuthenticatorAnd a b) t = Pair (Challenge a t) (Challenge b t)
+    type NotAuthenticReason (AuthenticatorAnd a b) t = Either (NotAuthenticReason a t) (NotAuthenticReason b t)
+    type Subject (AuthenticatorAnd a b) t = Pair (Subject a t) (Subject b t)
+    type Challenge (AuthenticatorAnd a b) t = Pair (Challenge a t) (Challenge b t)
 
-  authenticate (AuthenticatorAnd a b) proxy (P sA sB) (P cA cB) = do
-      -- TBD do these in parallel? Probably not worth it.
-      decisionA <- authenticate a proxy sA cA
-      decisionB <- authenticate b proxy sB cB
-      return ((Left <$> decisionA) <|> (Right <$> decisionB))
+    authenticate (AuthenticatorAnd a b) proxy (P sA sB) (P cA cB) =
+        chooseEither <$> authenticate a proxy sA cA <*> authenticate b proxy sB cB
+      where
+        chooseEither maybe1 maybe2 = (Left <$> maybe1) <|> (Right <$> maybe2)
