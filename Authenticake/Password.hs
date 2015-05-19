@@ -15,6 +15,7 @@ module Authenticake.Password (
 import qualified Data.Text as T
 import qualified Data.Map as M
 import Control.Applicative
+import Data.Functor.Identity
 import Authenticake.Authenticate
 
 -- | In-memory authenticator based on secret keys. If you give the value of
@@ -31,6 +32,7 @@ instance Authenticator Password where
   type NotAuthenticReason Password s = PasswordNotAuthentic
   type Subject Password t = T.Text
   type Challenge Password s = T.Text
+  type AuthenticatorF Password = Identity
   authenticate (Password map) proxy key value = case M.lookup key map of
     Just value' -> if value == value'
                    then return Nothing

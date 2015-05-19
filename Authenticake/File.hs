@@ -36,14 +36,15 @@ lineParser :: Parser (T.Text, T.Text)
 lineParser = (,) <$> takeTill ((==) ',') <* char ',' <*> takeText
 
 instance Authenticator File where
-  type Failure File s = FileFailure
+  type NotAuthenticReason File s = FileFailure
   type Subject File t = T.Text
   type Challenge File s = T.Text
+  type AuthenticatorF File = IO
 
   -- A rather ugly and probably unsafe definition of the flat file's
   -- decision: look for the first line in the file matching the username,
   -- and check the associated password.
-  authenticatorDecision f _ subject challenge =
+  authenticate f _ subject challenge =
       catch checkFile catcher
 
     where

@@ -6,6 +6,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Authenticake.Authenticate (
 
@@ -20,8 +21,8 @@ module Authenticake.Authenticate (
 
   , AuthenticationDecision
 
-  , AuthenticatorOr
-  , AuthenticatorAnd
+  --, AuthenticatorOr
+  --, AuthenticatorAnd
 
   ) where
 
@@ -51,18 +52,18 @@ withAuthentication
      , Authenticates ctx t
      , Authenticator (AuthenticationAgent ctx)
      , Monad m
-     , MonadIO m
      )
   => ctx
+  -> (forall r . AuthenticatorF (AuthenticationAgent ctx) r -> m r)
   -> t
   -> Challenge (AuthenticationAgent ctx) t
   -> (NotAuthenticReason (AuthenticationAgent ctx) t -> m a)
   -> Authenticate ctx t m a
   -> m a
-withAuthentication ctx datum challenge ifInvalid term = do
+withAuthentication ctx lifter datum challenge ifInvalid term = do
     let subject = toSubject ctx datum
     let agent = authenticationAgent ctx
-    decision <- liftIO $ authenticate agent (Proxy :: Proxy t) subject challenge
+    decision <- lifter $ authenticate agent (Proxy :: Proxy t) subject challenge
     case decision of
         Just reason -> ifInvalid reason
         Nothing -> runReaderT (runAuthenticate term) (ctx, datum)
@@ -74,6 +75,7 @@ class Authenticator ctx where
   -- ^ Description of why authentication was denied.
   type Subject ctx t
   type Challenge ctx t
+  type AuthenticatorF ctx :: * -> *
   authenticate
     :: (
        )
@@ -81,7 +83,7 @@ class Authenticator ctx where
     -> Proxy t
     -> Subject ctx t
     -> Challenge ctx t
-    -> IO (AuthenticationDecision ctx t)
+    -> (AuthenticatorF ctx) (AuthenticationDecision ctx t)
 
 class AuthenticationContext ctx => Authenticates ctx t where
   toSubject :: ctx -> t -> Subject (AuthenticationAgent ctx) t
@@ -94,6 +96,7 @@ class AuthenticationContext ctx where
 --   authentication succeeds.
 type AuthenticationDecision ctx t = Maybe (NotAuthenticReason ctx t)
 
+{-
 -- | An Authenticator which carries two Authenticators, and passes if and only
 --   if at least one of them passes.
 data AuthenticatorOr a b = AuthenticatorOr a b
@@ -133,3 +136,4 @@ instance
         chooseEither <$> authenticate a proxy sA cA <*> authenticate b proxy sB cB
       where
         chooseEither maybe1 maybe2 = (Left <$> maybe1) <|> (Right <$> maybe2)
+-}
