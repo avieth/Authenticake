@@ -32,8 +32,8 @@ purePassword = SecretAuthenticator getPwd setPwd checkPwd
         map <- get
         put (M.update (const challenge) subject map)
 
-    checkPwd :: T.Text -> T.Text -> State (M.Map T.Text T.Text) SecretComparison
-    checkPwd challenge pwd =
+    checkPwd :: T.Text -> T.Text -> T.Text -> State (M.Map T.Text T.Text) SecretComparison
+    checkPwd subject challenge pwd =
         if challenge == pwd
         then return Match
         else return NoMatch

@@ -25,7 +25,7 @@ import Authenticake.Authenticate
 data SecretAuthenticator m s c d = SecretAuthenticator {
     getSecret :: s -> m (Maybe d)
   , setSecret :: s -> (Maybe c) -> m ()
-  , checkSecret :: c -> d -> m SecretComparison
+  , checkSecret :: s -> c -> d -> m SecretComparison
   }
 
 data SecretComparison = Match | NoMatch
@@ -48,7 +48,7 @@ instance Monad m => Authenticator (SecretAuthenticator m s c d) where
         case maybeExistingSecret of
             Nothing -> return (Just (UnknownSubject subject))
             Just secret -> do
-                outcome <- checkSecret authenticator challenge secret
+                outcome <- checkSecret authenticator subject challenge secret
                 case outcome of
                     NoMatch -> return (Just (BadChallenge subject challenge))
                     Match -> return Nothing
