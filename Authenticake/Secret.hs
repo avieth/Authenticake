@@ -22,23 +22,6 @@ module Authenticake.Secret (
 
 import Authenticake.Authenticate
 
--- One way to authenticate is via a session token. The program sets a secret
--- token for a user, and if somebody claims to be that user, and supplies the
--- matching token, then we judge them authentic.
--- How does this authenticator differ from a password authenticator?
---
---   Similarities:
---   1. each must pull a datum from somewhere (salt + hash, session token)
---      based on a subject.
---   2. each must use the challenge and that datum to make a decision.
---
---   Differences:
---   1. password store uses a salted hash, but
---
--- With session, there's no hashing; the challenge is compared with what's
--- in the DB.
---
-
 data SecretAuthenticator m s c d = SecretAuthenticator {
     getSecret :: s -> m (Maybe d)
   , setSecret :: s -> (Maybe c) -> m ()
