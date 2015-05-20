@@ -15,40 +15,39 @@ Portability : non-portable (GHC only)
 module Authenticake.Secret (
 
     SecretAuthenticator(..)
-  , SecretComparison(..)
   , SecretNotAuthentic(..)
 
   ) where
 
 import Authenticake.Authenticate
 
-data SecretAuthenticator m s c d = SecretAuthenticator {
-    getSecret :: s -> m (Maybe d)
-  , setSecret :: s -> (Maybe c) -> m ()
-  , checkSecret :: s -> c -> d -> m SecretComparison
+data SecretAuthenticator m s c d t = SecretAuthenticator {
+    getSecret :: s -> c -> m (Maybe d)
+  , setSecret :: s -> Maybe c -> t -> m ()
+  , checkSecret :: s -> c -> d -> m (Maybe t)
   }
 
-data SecretComparison = Match | NoMatch
-
-data SecretNotAuthentic s c = UnknownSubject s | BadChallenge s c
+data SecretNotAuthentic s c = UnknownSubject s c | BadChallenge s c
   deriving (Show)
 
-instance Monad m => Authenticator (SecretAuthenticator m s c d) where
+instance Monad m => Authenticator (SecretAuthenticator m s c d t) where
 
-    type NotAuthenticReason (SecretAuthenticator m s c d) t = SecretNotAuthentic s c
+    type NotAuthenticReason (SecretAuthenticator m s c d t) u = SecretNotAuthentic s c
 
-    type Subject (SecretAuthenticator m s c d) t = s
+    type Subject (SecretAuthenticator m s c d t) u = s
 
-    type Challenge (SecretAuthenticator m s c d) t = c
+    type Challenge (SecretAuthenticator m s c d t) u = c
 
-    type AuthenticatorF (SecretAuthenticator m s c d) = m
+    type AuthenticatedThing (SecretAuthenticator m s c d t) u = t
+
+    type AuthenticatorF (SecretAuthenticator m s c d t) = m
 
     authenticate authenticator proxy subject challenge = do
-        maybeExistingSecret <- getSecret authenticator subject
+        maybeExistingSecret <- getSecret authenticator subject challenge
         case maybeExistingSecret of
-            Nothing -> return (Just (UnknownSubject subject))
+            Nothing -> return (Left (UnknownSubject subject challenge))
             Just secret -> do
                 outcome <- checkSecret authenticator subject challenge secret
                 case outcome of
-                    NoMatch -> return (Just (BadChallenge subject challenge))
-                    Match -> return Nothing
+                    Nothing -> return (Left (BadChallenge subject challenge))
+                    Just thing -> return (Right thing)

@@ -23,5 +23,6 @@ instance Authenticator Nice where
   type NotAuthenticReason Nice s = NiceDenial
   type Subject Nice t = t
   type Challenge Nice s = ()
+  type AuthenticatedThing Nice t = t
   type AuthenticatorF Nice = Identity
-  authenticate Nice proxy subject challenge = return Nothing
+  authenticate Nice proxy subject challenge = return (Right subject)
