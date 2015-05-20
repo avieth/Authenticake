@@ -10,6 +10,7 @@ module Authenticake.PurePassword (
 
 import qualified Data.Text as T
 import qualified Data.Map as M
+import Data.Functor.Constant
 import Control.Applicative
 import Control.Monad.Trans.State
 import Authenticake.Authenticate
@@ -19,9 +20,15 @@ type PurePassword =
     SecretAuthenticator
       (State (M.Map T.Text T.Text))
       T.Text
+      -- Subject
       T.Text
+      -- Challenge
+      Maybe
       T.Text
+      -- Authenticated thing = Subject
+      (Const ())
       T.Text
+      -- Secret = Challenge
 
 purePassword :: PurePassword
 purePassword = SecretAuthenticator getPwd setPwd checkPwd
@@ -33,7 +40,7 @@ purePassword = SecretAuthenticator getPwd setPwd checkPwd
         map <- get
         return (M.lookup subject map)
 
-    setPwd :: T.Text -> Maybe T.Text -> T.Text -> State (M.Map T.Text T.Text) ()
+    setPwd :: T.Text -> Maybe T.Text -> Const () T.Text -> State (M.Map T.Text T.Text) ()
     setPwd subject challenge thing = do
         map <- get
         put (M.update (const challenge) subject map)

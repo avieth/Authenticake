@@ -21,26 +21,52 @@ module Authenticake.Secret (
 
 import Authenticake.Authenticate
 
-data SecretAuthenticator m s c d t = SecretAuthenticator {
+-- | An authenticator which uses a secret datum to do its job.
+--   
+--     - @m@ is the functor in which computation takes place
+--     - @s@ is the subject
+--     - @fc@ is the functor to wrap the challenge in setSecret
+--     - @c@ is the challenge
+--     - @d@ is the secret
+--     - @ft@ is the functor to wrap the authenticated thing in setSecret
+--     - @t@ is the authenticated thing
+--
+--   A subject and challenge come together to determine a maybe secret.
+--   A subject, challenge, and secret come together to determine a maybe
+--   authenticated thing.
+--
+--   If s = t, ft = Const (), fc = Maybe, then we have something which
+--   resembles a password authentication system, with s representing username,
+--   c representing password, and d some sort of digest.
+--
+--   If d = t, s = (), ft = Maybe, fc = Identity, then we have something
+--   which resembles a token-based authentication system, with t representing
+--   username, and c the token.
+--
+data SecretAuthenticator m s c fc t ft d = SecretAuthenticator {
     getSecret :: s -> c -> m (Maybe d)
-  , setSecret :: s -> Maybe c -> t -> m ()
+  , setSecret :: s -> fc c -> ft t -> m ()
   , checkSecret :: s -> c -> d -> m (Maybe t)
   }
 
 data SecretNotAuthentic s c = UnknownSubject s c | BadChallenge s c
   deriving (Show)
 
-instance Monad m => Authenticator (SecretAuthenticator m s c d t) where
+instance
+    ( Monad m
+    ) => Authenticator (SecretAuthenticator m s c fc t ft d)
 
-    type NotAuthenticReason (SecretAuthenticator m s c d t) u = SecretNotAuthentic s c
+  where
 
-    type Subject (SecretAuthenticator m s c d t) u = s
+    type NotAuthenticReason (SecretAuthenticator m s c fc t ft d) u = SecretNotAuthentic s c
 
-    type Challenge (SecretAuthenticator m s c d t) u = c
+    type Subject (SecretAuthenticator m s c fc t ft d) u = s
 
-    type AuthenticatedThing (SecretAuthenticator m s c d t) u = t
+    type Challenge (SecretAuthenticator m s c fc t ft d) u = c
 
-    type AuthenticatorF (SecretAuthenticator m s c d t) = m
+    type AuthenticatedThing (SecretAuthenticator m s c fc t ft d) u = t
+
+    type AuthenticatorF (SecretAuthenticator m s c fc t ft d) = m
 
     authenticate authenticator proxy subject challenge = do
         maybeExistingSecret <- getSecret authenticator subject challenge
