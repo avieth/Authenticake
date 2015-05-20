@@ -4,45 +4,36 @@
 module Authenticake.PurePassword (
 
     PurePassword
-  , emptyPurePassword
-  , fromMap
-
-  , PurePasswordNotAuthentic(..)
+  , purePassword
 
   ) where
 
 import qualified Data.Text as T
 import qualified Data.Map as M
 import Control.Applicative
-import Data.Functor.Identity
+import Control.Monad.Trans.State
 import Authenticake.Authenticate
+import Authenticake.Secret
 
--- | In-memory authenticator based on secret keys. If you give the value of
---   the map at the subject point, then you're authenticated.
-data PurePassword = PurePassword (M.Map T.Text T.Text)
+type PurePassword = SecretAuthenticator (State (M.Map T.Text T.Text)) T.Text T.Text T.Text
 
--- | Can never fail for exceptional reasons, unlike an I/O based authenticator.
-data PurePasswordNotAuthentic
-  = SubjectNotFound
-  | ChallengeMismatch
-  deriving (Show)
+purePassword :: PurePassword
+purePassword = SecretAuthenticator getPwd setPwd checkPwd
 
-instance Authenticator PurePassword where
-  type NotAuthenticReason PurePassword s = PurePasswordNotAuthentic
-  type Subject PurePassword t = T.Text
-  type Challenge PurePassword s = T.Text
-  type AuthenticatorF PurePassword = Identity
-  authenticate (PurePassword map) proxy key value = case M.lookup key map of
-    Just value' -> if value == value'
-                   then return Nothing
-                   else return $ Just ChallengeMismatch
-    Nothing -> return $ Just SubjectNotFound
+  where
 
-emptyPurePassword :: PurePassword
-emptyPurePassword = PurePassword M.empty
+    getPwd :: T.Text -> State (M.Map T.Text T.Text) (Maybe T.Text)
+    getPwd subject = do
+        map <- get
+        return (M.lookup subject map)
 
-fromMap :: M.Map T.Text T.Text -> PurePassword
-fromMap = PurePassword
+    setPwd :: T.Text -> Maybe T.Text -> State (M.Map T.Text T.Text) ()
+    setPwd subject challenge = do
+        map <- get
+        put (M.update (const challenge) subject map)
 
-setPassword :: T.Text -> Maybe T.Text -> PurePassword -> PurePassword
-setPassword subject challenge (PurePassword map) = PurePassword (M.alter (const challenge) subject map)
+    checkPwd :: T.Text -> T.Text -> State (M.Map T.Text T.Text) SecretComparison
+    checkPwd challenge pwd =
+        if challenge == pwd
+        then return Match
+        else return NoMatch

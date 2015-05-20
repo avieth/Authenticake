@@ -55,8 +55,8 @@ library
   exposed-modules:     Authenticake.Authenticate
                      , Authenticake.Strict
                      , Authenticake.Nice
+                     , Authenticake.Secret
                      , Authenticake.PurePassword
-                     , Authenticake.File
   
   -- Modules included in this library but not exported.
   -- other-modules:       
@@ -76,7 +76,6 @@ library
                      , transformers >= 0.3
                      , containers >= 0.2
                      , text >= 1.2 && <= 1.3
-                     , attoparsec >= 0.11
   
   -- Directories containing source files.
   -- hs-source-dirs:      
