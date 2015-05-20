@@ -55,7 +55,7 @@ library
   exposed-modules:     Authenticake.Authenticate
                      , Authenticake.Strict
                      , Authenticake.Nice
-                     , Authenticake.Password
+                     , Authenticake.PurePassword
                      , Authenticake.File
   
   -- Modules included in this library but not exported.
