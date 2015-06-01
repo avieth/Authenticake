@@ -24,6 +24,5 @@ instance Authenticator Strict where
   type NotAuthenticReason Strict s = StrictDenial
   type Subject Strict t = t
   type Challenge Strict s = ()
-  type AuthenticatedThing Strict t = t
   type AuthenticatorF Strict = Identity
-  authenticate Strict proxy subject challenge = return $ Left StrictDenial
+  authenticate Strict proxy subject challenge = return $ Just StrictDenial

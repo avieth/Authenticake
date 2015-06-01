@@ -64,16 +64,14 @@ instance
 
     type Challenge (SecretAuthenticator m s c fc t ft d) u = c
 
-    type AuthenticatedThing (SecretAuthenticator m s c fc t ft d) u = t
-
     type AuthenticatorF (SecretAuthenticator m s c fc t ft d) = m
 
     authenticate authenticator proxy subject challenge = do
         maybeExistingSecret <- getSecret authenticator subject challenge
         case maybeExistingSecret of
-            Nothing -> return (Left (UnknownSubject subject challenge))
+            Nothing -> return (Just (UnknownSubject subject challenge))
             Just secret -> do
                 outcome <- checkSecret authenticator subject challenge secret
                 case outcome of
-                    Nothing -> return (Left (BadChallenge subject challenge))
-                    Just thing -> return (Right thing)
+                    Nothing -> return (Just (BadChallenge subject challenge))
+                    Just thing -> return Nothing

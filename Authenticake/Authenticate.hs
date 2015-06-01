@@ -65,17 +65,14 @@ withAuthentication ctx lifter datum challenge ifInvalid term = do
     let agent = authenticationAgent ctx
     decision <- lifter $ authenticate agent (Proxy :: Proxy t) subject challenge
     case decision of
-        Left reason -> ifInvalid reason
-        Right thing -> runReaderT (runAuthenticate term) (ctx, fromAuthenticatedThing ctx thing)
-        -- ^ The datum which was authenticated is always given to the reader.
-        --   This is very important.
+        Just reason -> ifInvalid reason
+        Nothing -> runReaderT (runAuthenticate term) (ctx, datum)
 
 class Authenticator ctx where
   type NotAuthenticReason ctx t
   -- ^ Description of why authentication was denied.
   type Subject ctx t
   type Challenge ctx t
-  type AuthenticatedThing ctx t
   type AuthenticatorF ctx :: * -> *
   authenticate
     :: (
@@ -88,7 +85,6 @@ class Authenticator ctx where
 
 class AuthenticationContext ctx => Authenticates ctx t where
   toSubject :: ctx -> t -> Subject (AuthenticationAgent ctx) t
-  fromAuthenticatedThing :: ctx -> AuthenticatedThing (AuthenticationAgent ctx) t -> t
 
 class AuthenticationContext ctx where
   type AuthenticationAgent ctx
@@ -96,8 +92,7 @@ class AuthenticationContext ctx where
 
 -- | A Just gives a reason for denial, and absence of a reason (Nothing) means
 --   authentication succeeds.
-type AuthenticationDecision ctx t =
-    Either (NotAuthenticReason ctx t) (AuthenticatedThing ctx t)
+type AuthenticationDecision ctx t = Maybe (NotAuthenticReason ctx t)
 
 {-
 -- | An Authenticator which carries two Authenticators, and passes if and only

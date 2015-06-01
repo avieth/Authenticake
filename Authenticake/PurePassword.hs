@@ -10,7 +10,6 @@ module Authenticake.PurePassword (
 
 import qualified Data.Text as T
 import qualified Data.Map as M
-import Data.Functor.Constant
 import Control.Applicative
 import Control.Monad.Trans.State
 import Authenticake.Authenticate
