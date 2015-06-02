@@ -7,6 +7,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Authenticake.Authenticate (
 
@@ -14,6 +17,7 @@ module Authenticake.Authenticate (
   , authenticatedThing
   , authenticatedContext
   , withAuthentication
+  , AuthenticationOutcome(..)
 
   , Authenticator(..)
   , Authenticates(..)
@@ -46,27 +50,39 @@ authenticatedThing = Authenticate (snd <$> ask)
 instance MonadTrans (Authenticate ctx t) where
   lift = Authenticate . lift
 
+data AuthenticationOutcome ctx t a where
+  AuthenticationFailed :: NotAuthenticReason (AuthenticationAgent ctx t) t -> AuthenticationOutcome ctx t a
+  AuthenticationOK :: a -> AuthenticationOutcome ctx t a
+
+deriving instance (Show a, Show (NotAuthenticReason (AuthenticationAgent ctx t) t))
+  => Show (AuthenticationOutcome ctx t a)
+
+instance Functor (AuthenticationOutcome ctx t) where
+  fmap f term = case term of
+      AuthenticationFailed x -> AuthenticationFailed x
+      AuthenticationOK x -> AuthenticationOK (f x)
+
 withAuthentication
   :: forall ctx t m a .
-     ( AuthenticationContext ctx
+     ( AuthenticationContext ctx t
      , Authenticates ctx t
-     , Authenticator (AuthenticationAgent ctx)
+     , Authenticator (AuthenticationAgent ctx t)
+     , Functor m
      , Monad m
      )
   => ctx
-  -> (forall r . AuthenticatorF (AuthenticationAgent ctx) r -> m r)
+  -> (forall r . AuthenticatorF (AuthenticationAgent ctx t) r -> m r)
   -> t
-  -> Challenge (AuthenticationAgent ctx) t
-  -> (NotAuthenticReason (AuthenticationAgent ctx) t -> m a)
+  -> Challenge (AuthenticationAgent ctx t) t
   -> Authenticate ctx t m a
-  -> m a
-withAuthentication ctx lifter datum challenge ifInvalid term = do
+  -> m (AuthenticationOutcome ctx t a)
+withAuthentication ctx lifter datum challenge term = do
     let subject = toSubject ctx datum
-    let agent = authenticationAgent ctx
+    let agent = authenticationAgent ctx (Proxy :: Proxy t)
     decision <- lifter $ authenticate agent (Proxy :: Proxy t) subject challenge
     case decision of
-        Just reason -> ifInvalid reason
-        Nothing -> runReaderT (runAuthenticate term) (ctx, datum)
+        Just reason -> return (AuthenticationFailed reason)
+        Nothing -> fmap AuthenticationOK (runReaderT (runAuthenticate term) (ctx, datum))
 
 class Authenticator ctx where
   type NotAuthenticReason ctx t
@@ -83,12 +99,12 @@ class Authenticator ctx where
     -> Challenge ctx t
     -> (AuthenticatorF ctx) (AuthenticationDecision ctx t)
 
-class AuthenticationContext ctx => Authenticates ctx t where
-  toSubject :: ctx -> t -> Subject (AuthenticationAgent ctx) t
+class AuthenticationContext ctx t => Authenticates ctx t where
+  toSubject :: ctx -> t -> Subject (AuthenticationAgent ctx t) t
 
-class AuthenticationContext ctx where
-  type AuthenticationAgent ctx
-  authenticationAgent :: ctx -> AuthenticationAgent ctx
+class AuthenticationContext ctx t where
+  type AuthenticationAgent ctx t
+  authenticationAgent :: ctx -> Proxy t -> AuthenticationAgent ctx t
 
 -- | A Just gives a reason for denial, and absence of a reason (Nothing) means
 --   authentication succeeds.

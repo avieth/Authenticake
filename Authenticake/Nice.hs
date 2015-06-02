@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Authenticake.Nice (
 
@@ -18,6 +19,8 @@ import Data.Functor.Identity
 data Nice = Nice
 
 data NiceDenial
+
+deriving instance Show NiceDenial
 
 instance Authenticator Nice where
   type NotAuthenticReason Nice s = NiceDenial
